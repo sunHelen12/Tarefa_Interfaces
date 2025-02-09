@@ -101,6 +101,41 @@ double numero_nove[25] =   {0.0, 0.0, 0.3, 0.3, 0.3,
                             0.3, 0.0, 0.0, 0.0, 0.0,
                             0.0, 0.0, 0.3, 0.3, 0.3};
 
+
+// Função para desenhar strings no display
+void draw_text(ssd1306_t *display, int x, int y, const char *text) {
+    while (*text) {
+        ssd1306_draw_char(display, *text, x, y);
+        x += 6; // Avança para a próxima posição (ajuste conforme necessário)
+        text++;
+    }
+}
+// Rotina para atualizar o display com o estado dos LEDs
+void atualizar_display() {
+    ssd1306_fill(&ssd, false); // Limpa o display
+
+    char msg_verde[10];
+    char msg_azul[10];
+
+    if (gpio_get(LED_GREEN)) {
+        sprintf(msg_verde, "Verde ON");
+    } else {
+        sprintf(msg_verde, "Verde OFF");
+    }
+
+    if (gpio_get(LED_BLUE)) {
+        sprintf(msg_azul, "Azul ON");
+    } else {
+        sprintf(msg_azul, "Azul OFF");
+    }
+
+    draw_text(&ssd, 10, 10, msg_verde);
+    draw_text(&ssd, 10, 30, msg_azul);
+
+    ssd1306_send_data(&ssd); // Atualiza o display
+}
+
+
 //rotina pra definição de cores do led
 uint32_t matrix_rgb(double r, double g, double b){
     unsigned char R, G, B;
@@ -191,6 +226,12 @@ int main(){
             char c;
             if (scanf("%c", &c) == 1){
                 printf("Recebido: '%c'\n", c);
+                 // Verifica se o caractere é um número de 0 a 9
+                if (c >= '0' && c <= '9') {
+                    int numero = c - '0'; // Converte o caractere para o número inteiro
+                    mostrar_numero(numero); // Exibe o número na matriz de LEDs
+                }
+                
                 cor = !cor;
                 ssd1306_fill(&ssd, !cor);
                 ssd1306_rect(&ssd, 3, 3, 112, 58, cor, !cor);
@@ -212,15 +253,14 @@ void gpio_irq_handler(uint gpio, uint32_t events) {
 
     // verifica se passou tempo suficiente desde o último evento (debouncing)
     if (current_time - last_time > 200000) { // 200ms de debounce
+       
         if (gpio == BUTTON_0) { // botão 0 pressionado
             if (gpio_get(LED_BLUE)) { 
                 gpio_put(LED_BLUE, 0); // apaga o LED azul se estiver aceso
-                printf("LED Azul: Desligado\n");       
-
+                printf("LED Azul: Desligado\n");
             } else {
                 gpio_xor_mask(1 << LED_GREEN); // inverte o estado do LED verde
-                printf("LED Verde: %s\n", gpio_get(LED_GREEN) ? "Desligado" : "Ligado");
-               
+                printf("LED Verde: %s\n", gpio_get(LED_GREEN) ? "Ligado" : "Desligado");
             }           
         }
 
@@ -230,12 +270,14 @@ void gpio_irq_handler(uint gpio, uint32_t events) {
                 printf("LED Verde: Desligado\n");
             } else {
                 gpio_xor_mask(1 << LED_BLUE); // inverte o estado do LED azul
-                printf("LED Azul: %s\n", gpio_get(LED_BLUE) ? "Desligado" : "Ligado");                
+                printf("LED Azul: %s\n", gpio_get(LED_BLUE) ? "Ligado" : "Desligado");                
             }      
-            
         }
-
+        // Atualiza o display com o novo estado dos LEDs
+        atualizar_display();
+      
         last_time = current_time; // atualiza o tempo do último evento
     }
 }
+
 
