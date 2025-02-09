@@ -208,6 +208,7 @@ int main(){
     gpio_set_irq_enabled_with_callback(BUTTON_0, GPIO_IRQ_EDGE_FALL, true, &gpio_irq_handler);
     gpio_set_irq_enabled_with_callback(BUTTON_1, GPIO_IRQ_EDGE_FALL, true, &gpio_irq_handler);    
 
+    //configura display
     ssd1306_init(&ssd, WIDTH, HEIGHT, false, DISPLAY_ADDR, I2C_PORT);
     ssd1306_config(&ssd);    
     ssd1306_fill(&ssd, false);
@@ -226,19 +227,17 @@ int main(){
             char c;
             if (scanf("%c", &c) == 1){
                 printf("Recebido: '%c'\n", c);
-                 // Verifica se o caractere é um número de 0 a 9
+                 // verifica se o caractere é um número de 0 a 9
                 if (c >= '0' && c <= '9') {
-                    int numero = c - '0'; // Converte o caractere para o número inteiro
-                    mostrar_numero(numero); // Exibe o número na matriz de LEDs
+                    int numero = c - '0'; // converte o caractere para o número inteiro
+                    mostrar_numero(numero); // exibe o número na matriz de LEDs
                 }
 
                 cor = !cor;
-                ssd1306_fill(&ssd, !cor);
-                ssd1306_rect(&ssd, 3, 3, 112, 58, cor, !cor);
-                
-                ssd1306_draw_char(&ssd, c, 20, 30);
-
-                ssd1306_send_data(&ssd);                
+                ssd1306_fill(&ssd, !cor); // Limpa o display
+                ssd1306_rect(&ssd, 3, 3, 112, 58, cor, !cor); // desenha um retângulo                
+                ssd1306_draw_char(&ssd, c, 20, 30); //adiciona o caractere
+                ssd1306_send_data(&ssd); //atualiza o display               
             }
             sleep_ms(40);
             
