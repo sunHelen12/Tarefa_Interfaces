@@ -14,13 +14,7 @@
 #define I2C_PORT i2c1
 #define I2C_SDA 14
 #define I2C_SCL 15
-#define endereco 0x3C
-
-//configuração do UART
-#define UART_ID uart0 // seleciona a UART0
-#define BAUD_RATE 115200 // define a taxa de transmissão
-#define UART_TX_PIN 0 // pino GPIO usado para TX
-#define UART_RX_PIN 1 // pino GPIO usado para RX
+#define DISPLAY_ADDR 0x3C
 
 //configuração da matriz de LEDs
 #define NUM_PIXELS 25 //número de LEDs
@@ -40,6 +34,8 @@ static void gpio_irq_handler(uint gpio, uint32_t events);
 //variáveis globais 
 PIO pio;
 uint sm;
+// estrutura do display
+ssd1306_t ssd;
 
 //variáveis voláteis
 static volatile uint32_t last_time = 0; //armazena o último evento de temo (microssegundos)
@@ -124,42 +120,89 @@ void desenho_pio(double *desenho){
     }
 }
 
+// vetores de animação dos números
+double *numeros[10] = {numero_zero, numero_um, numero_dois, numero_tres, numero_quatro, 
+                       numero_cinco, numero_seis, numero_sete, numero_oito, numero_nove};
+
+// exibir número na matriz WS2812
+void mostrar_numero(int numero) {
+    if (numero >= 0 && numero <= 9) {
+        desenho_pio(numeros[numero]);
+    }
+}
+
 //rotina principal
 int main(){
     pio = pio0; // para carregarmos nossa PIO
-    
+
     //inicializa a biblioteca padrão
     stdio_init_all();
 
-    // configura os LEDs
+     // Configura LEDs
     gpio_init(LED_GREEN);
     gpio_set_dir(LED_GREEN, GPIO_OUT);
+    gpio_put(LED_GREEN, 0);
+
     gpio_init(LED_BLUE);
     gpio_set_dir(LED_BLUE, GPIO_OUT);
-    
-    // inicializa os botões com pull-up interno
+    gpio_put(LED_BLUE, 0);
+
+    // Configura botões
     gpio_init(BUTTON_0);
     gpio_set_dir(BUTTON_0, GPIO_IN);
     gpio_pull_up(BUTTON_0);
 
     gpio_init(BUTTON_1);
     gpio_set_dir(BUTTON_1, GPIO_IN);
-    gpio_pull_up(BUTTON_1);
+    gpio_pull_up(BUTTON_1);     
 
-    //configura os pinos GPIO para a UART
-    gpio_set_function(UART_TX_PIN, GPIO_FUNC_UART); //configura o pino 0 para TX
-    gpio_set_function(UART_RX_PIN, GPIO_FUNC_UART); //configura o pino 1 para RX
+    // Configura SSD1306
+    i2c_init(I2C_PORT, 400 * 1000);
+    gpio_set_function(I2C_SDA, GPIO_FUNC_I2C);
+    gpio_set_function(I2C_SCL, GPIO_FUNC_I2C);
+    gpio_pull_up(I2C_SDA);
+    gpio_pull_up(I2C_SCL);
 
-    //configurações da PIO
+     // Configura PIO para matriz de LEDs WS2812
+    pio = pio0;
     uint offset = pio_add_program(pio, &interfaces_program);
     sm = pio_claim_unused_sm(pio, true);
-    interfaces_program_init(pio, sm, offset, OUT_PIN);
+    interfaces_program_init(pio, sm, offset, OUT_PIN);    
 
-    //configuração de interrupção com callback para os botões
-    gpio_set_irq_enabled_with_callback(BUTTON_0, GPIO_IRQ_EDGE_FALL, true, &gpio_irq_handler);   
-    gpio_set_irq_enabled_with_callback(BUTTON_1, GPIO_IRQ_EDGE_FALL, true, &gpio_irq_handler);
-    
+    // Configura interrupção nos botões
+    gpio_set_irq_enabled_with_callback(BUTTON_0, GPIO_IRQ_EDGE_FALL, true, &gpio_irq_handler);
+    gpio_set_irq_enabled_with_callback(BUTTON_1, GPIO_IRQ_EDGE_FALL, true, &gpio_irq_handler);    
 
+    ssd1306_init(&ssd, WIDTH, HEIGHT, false, DISPLAY_ADDR, I2C_PORT);
+    ssd1306_config(&ssd);    
+    ssd1306_fill(&ssd, false);
+    ssd1306_send_data(&ssd);
+
+    ssd1306_fill(&ssd, false);
+    ssd1306_send_data(&ssd);
+
+    bool cor = true;    
+
+    printf("Sistema inicializado! Digite caracteres no Serial Monitor.\n");
+
+    while (true) {
+        sleep_ms(1000);
+        if (stdio_usb_connected()){
+            char c;
+            if (scanf("%c", &c) == 1){
+                printf("Recebido: '%c'\n", c);
+                cor = !cor;
+                ssd1306_fill(&ssd, !cor);
+                ssd1306_rect(&ssd, 3, 3, 112, 58, cor, !cor);
+                
+                ssd1306_draw_char(&ssd, c, 20, 30);
+
+                ssd1306_send_data(&ssd);                
+            }
+            sleep_ms(40);
+            
+        }
+    }
 }
 
 // rotina de interrupção
@@ -172,11 +215,12 @@ void gpio_irq_handler(uint gpio, uint32_t events) {
         if (gpio == BUTTON_0) { // botão 0 pressionado
             if (gpio_get(LED_BLUE)) { 
                 gpio_put(LED_BLUE, 0); // apaga o LED azul se estiver aceso
-                printf("LED Azul: Desligado\n");
+                printf("LED Azul: Desligado\n");       
+
             } else {
                 gpio_xor_mask(1 << LED_GREEN); // inverte o estado do LED verde
                 printf("LED Verde: %s\n", gpio_get(LED_GREEN) ? "Desligado" : "Ligado");
-                exibir_no_display(gpio_get(LED_GREEN) ? "LED Verde ON" : "LED Verde OFF");
+               
             }           
         }
 
@@ -186,8 +230,7 @@ void gpio_irq_handler(uint gpio, uint32_t events) {
                 printf("LED Verde: Desligado\n");
             } else {
                 gpio_xor_mask(1 << LED_BLUE); // inverte o estado do LED azul
-                printf("LED Azul: %s\n", gpio_get(LED_BLUE) ? "Desligado" : "Ligado");
-                exibir_no_display(gpio_get(LED_BLUE) ? "LED Azul ON" : "LED Azul OFF");
+                printf("LED Azul: %s\n", gpio_get(LED_BLUE) ? "Desligado" : "Ligado");                
             }      
             
         }
