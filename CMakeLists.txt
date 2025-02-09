@@ -41,18 +41,19 @@ pico_set_program_name(interfaces "interfaces")
 pico_set_program_version(interfaces "0.1")
 
 # Modify the below lines to enable/disable output over UART/USB
-pico_enable_stdio_uart(interfaces 0)
+pico_enable_stdio_uart(interfaces 1)  #Alterado de 0 para 1 (ativa UART)
 pico_enable_stdio_usb(interfaces 1)
 
 pico_generate_pio_header(interfaces ${CMAKE_CURRENT_LIST_DIR}/interfaces.pio)
 
 # Add the standard library to the build
-target_link_libraries(interfaces
-        pico_stdlib
-        hardware_pio
-        hardware_clocks
-	    hardware_adc
-        pico_bootrom)
+target_link_libraries(pico_stdlib
+            hardware_pio
+            hardware_clocks
+            hardware_adc
+            hardware_uart  # Adicionado para suporte à UART
+            pico_bootrom
+            hardware_i2c)
 
 # Add the standard include files to the build
 target_include_directories(interfaces PRIVATE

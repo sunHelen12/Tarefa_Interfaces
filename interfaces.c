@@ -15,6 +15,13 @@
 #define I2C_SDA 14
 #define I2C_SCL 15
 #define endereco 0x3C
+
+//configuração do UART
+#define UART_ID uart0 // Seleciona a UART0
+#define BAUD_RATE 115200 // Define a taxa de transmissão
+#define UART_TX_PIN 0 // Pino GPIO usado para TX
+#define UART_RX_PIN 1 // Pino GPIO usado para RX
+
 //configuração da matriz de LEDs
 #define NUM_PIXELS 25 //número de LEDs
 #define OUT_PIN 7 //pino de saída 
@@ -126,6 +133,10 @@ void desenho_pio(double *desenho){
 
 //rotina principal
 int main(){
+
+    //inicializa a biblioteca padrão
+    stdio_init_all();
+
 
     //configuração de interrupção com callback para os botões
     gpio_set_irq_enabled_with_callback(BUTTON_0, GPIO_IRQ_EDGE_FALL, true, &gpio_irq_handler);   
