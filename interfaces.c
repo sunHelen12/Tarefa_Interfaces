@@ -42,7 +42,6 @@ PIO pio;
 uint sm;
 
 //variáveis voláteis
-static volatile uint a = 1; //vai incrementar as vezes que o botão será apertado
 static volatile uint32_t last_time = 0; //armazena o último evento de temo (microssegundos)
 
 //vetores com animação dos números
@@ -106,12 +105,6 @@ double numero_nove[25] =   {0.0, 0.0, 0.3, 0.3, 0.3,
                             0.3, 0.0, 0.0, 0.0, 0.0,
                             0.0, 0.0, 0.3, 0.3, 0.3};
 
-// guardando todos os números em um vetor
-double *numeros [10] = {
-    numero_zero, numero_um, numero_dois, numero_tres, numero_quatro,
-    numero_cinco, numero_seis, numero_sete, numero_oito, numero_nove
-};
-
 //rotina pra definição de cores do led
 uint32_t matrix_rgb(double r, double g, double b){
     unsigned char R, G, B;
@@ -134,13 +127,24 @@ void desenho_pio(double *desenho){
 //rotina principal
 int main(){
     pio = pio0; // para carregarmos nossa PIO
-    bool ok;
-
+    
     //inicializa a biblioteca padrão
     stdio_init_all();
 
-    //inicializa a UART
-    uart_init(UART_ID, BAUD_RATE);
+    // configura os LEDs
+    gpio_init(LED_GREEN);
+    gpio_set_dir(LED_GREEN, GPIO_OUT);
+    gpio_init(LED_BLUE);
+    gpio_set_dir(LED_BLUE, GPIO_OUT);
+    
+    // inicializa os botões com pull-up interno
+    gpio_init(BUTTON_0);
+    gpio_set_dir(BUTTON_0, GPIO_IN);
+    gpio_pull_up(BUTTON_0);
+
+    gpio_init(BUTTON_1);
+    gpio_set_dir(BUTTON_1, GPIO_IN);
+    gpio_pull_up(BUTTON_1);
 
     //configura os pinos GPIO para a UART
     gpio_set_function(UART_TX_PIN, GPIO_FUNC_UART); //configura o pino 0 para TX
@@ -149,28 +153,46 @@ int main(){
     //configurações da PIO
     uint offset = pio_add_program(pio, &interfaces_program);
     sm = pio_claim_unused_sm(pio, true);
-    tarefa_interrupcoes_program_init(pio, sm, offset, OUT_PIN);
+    interfaces_program_init(pio, sm, offset, OUT_PIN);
 
     //configuração de interrupção com callback para os botões
     gpio_set_irq_enabled_with_callback(BUTTON_0, GPIO_IRQ_EDGE_FALL, true, &gpio_irq_handler);   
     gpio_set_irq_enabled_with_callback(BUTTON_1, GPIO_IRQ_EDGE_FALL, true, &gpio_irq_handler);
+    
 
 }
 
-//rotina de interrupção 
-void gpio_irq_handler(uint gpio, uint32_t events){
-    //armazena o tempo atual em microssegundos
+// rotina de interrupção
+void gpio_irq_handler(uint gpio, uint32_t events) {
+    // armazena o tempo atual em microssegundos
     uint32_t current_time = to_us_since_boot(get_absolute_time());
-    //será verificado se o tempo que passou foi suficiente desde o último evento 
-    if (current_time - last_time > 200000){ //200ms de deboucing
-        if (gpio == BUTTON_0){
-           
+
+    // verifica se passou tempo suficiente desde o último evento (debouncing)
+    if (current_time - last_time > 200000) { // 200ms de debounce
+        if (gpio == BUTTON_0) { // botão 0 pressionado
+            if (gpio_get(LED_BLUE)) { 
+                gpio_put(LED_BLUE, 0); // apaga o LED azul se estiver aceso
+                printf("LED Azul: Desligado\n");
+            } else {
+                gpio_xor_mask(1 << LED_GREEN); // inverte o estado do LED verde
+                printf("LED Verde: %s\n", gpio_get(LED_GREEN) ? "Desligado" : "Ligado");
+                exibir_no_display(gpio_get(LED_GREEN) ? "LED Verde ON" : "LED Verde OFF");
+            }           
         }
 
-        if (gpio == BUTTON_1){
-           
+        if (gpio == BUTTON_1) { // botão 1 pressionado
+            if (gpio_get(LED_GREEN)) { 
+                gpio_put(LED_GREEN, 0); // apaga o LED verde se estiver aceso
+                printf("LED Verde: Desligado\n");
+            } else {
+                gpio_xor_mask(1 << LED_BLUE); // inverte o estado do LED azul
+                printf("LED Azul: %s\n", gpio_get(LED_BLUE) ? "Desligado" : "Ligado");
+                exibir_no_display(gpio_get(LED_BLUE) ? "LED Azul ON" : "LED Azul OFF");
+            }      
+            
         }
-        last_time = current_time; //atualizar o tempo
+
+        last_time = current_time; // atualiza o tempo do último evento
     }
-    //atualiza a matriz com o novo número e implementa a cor dos LEDs (roxa)    
 }
+
