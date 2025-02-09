@@ -17,10 +17,10 @@
 #define endereco 0x3C
 
 //configuração do UART
-#define UART_ID uart0 // Seleciona a UART0
-#define BAUD_RATE 115200 // Define a taxa de transmissão
-#define UART_TX_PIN 0 // Pino GPIO usado para TX
-#define UART_RX_PIN 1 // Pino GPIO usado para RX
+#define UART_ID uart0 // seleciona a UART0
+#define BAUD_RATE 115200 // define a taxa de transmissão
+#define UART_TX_PIN 0 // pino GPIO usado para TX
+#define UART_RX_PIN 1 // pino GPIO usado para RX
 
 //configuração da matriz de LEDs
 #define NUM_PIXELS 25 //número de LEDs
@@ -133,10 +133,23 @@ void desenho_pio(double *desenho){
 
 //rotina principal
 int main(){
+    pio = pio0; // para carregarmos nossa PIO
+    bool ok;
 
     //inicializa a biblioteca padrão
     stdio_init_all();
 
+    //inicializa a UART
+    uart_init(UART_ID, BAUD_RATE);
+
+    //configura os pinos GPIO para a UART
+    gpio_set_function(UART_TX_PIN, GPIO_FUNC_UART); //configura o pino 0 para TX
+    gpio_set_function(UART_RX_PIN, GPIO_FUNC_UART); //configura o pino 1 para RX
+
+    //configurações da PIO
+    uint offset = pio_add_program(pio, &interfaces_program);
+    sm = pio_claim_unused_sm(pio, true);
+    tarefa_interrupcoes_program_init(pio, sm, offset, OUT_PIN);
 
     //configuração de interrupção com callback para os botões
     gpio_set_irq_enabled_with_callback(BUTTON_0, GPIO_IRQ_EDGE_FALL, true, &gpio_irq_handler);   
