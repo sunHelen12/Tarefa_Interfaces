@@ -231,7 +231,7 @@ int main(){
                     int numero = c - '0'; // Converte o caractere para o número inteiro
                     mostrar_numero(numero); // Exibe o número na matriz de LEDs
                 }
-                
+
                 cor = !cor;
                 ssd1306_fill(&ssd, !cor);
                 ssd1306_rect(&ssd, 3, 3, 112, 58, cor, !cor);
@@ -251,16 +251,17 @@ void gpio_irq_handler(uint gpio, uint32_t events) {
     // armazena o tempo atual em microssegundos
     uint32_t current_time = to_us_since_boot(get_absolute_time());
 
-    // verifica se passou tempo suficiente desde o último evento (debouncing)
+    // verifica se passou tempo suficiente desde o último evento (debouncing)      
+ 
     if (current_time - last_time > 200000) { // 200ms de debounce
-       
         if (gpio == BUTTON_0) { // botão 0 pressionado
             if (gpio_get(LED_BLUE)) { 
                 gpio_put(LED_BLUE, 0); // apaga o LED azul se estiver aceso
                 printf("LED Azul: Desligado\n");
             } else {
                 gpio_xor_mask(1 << LED_GREEN); // inverte o estado do LED verde
-                printf("LED Verde: %s\n", gpio_get(LED_GREEN) ? "Ligado" : "Desligado");
+                printf("LED Verde: %s\n", gpio_get(LED_GREEN) ? "Desligado" : "Ligado");
+                
             }           
         }
 
@@ -270,9 +271,10 @@ void gpio_irq_handler(uint gpio, uint32_t events) {
                 printf("LED Verde: Desligado\n");
             } else {
                 gpio_xor_mask(1 << LED_BLUE); // inverte o estado do LED azul
-                printf("LED Azul: %s\n", gpio_get(LED_BLUE) ? "Ligado" : "Desligado");                
-            }      
-        }
+                printf("LED Azul: %s\n", gpio_get(LED_BLUE) ? "Desligado" : "Ligado");
+                
+            }
+        }  
         // Atualiza o display com o novo estado dos LEDs
         atualizar_display();
       
